@@ -1,0 +1,251 @@
+---
+title: "Predictive Factors of Used Car Prices In the UK"
+author: "Dale Urquhart"
+date: "Last updated on `r Sys.Date()`"
+output:
+  html_document:
+    fig_caption: yes
+    theme: lumen
+    toc: yes
+    toc_depth: 2
+    df_print: kable
+    toc_float:
+      collapsed: no
+---
+
+```{r, include=FALSE}
+# Do not edit this code block/chunk
+knitr::opts_chunk$set(echo = FALSE, message=FALSE, warning = FALSE, fig.width = 16/2.5, fig.height = 9/2.5)
+```
+
+
+```{r}
+# Load all necessary packages here:
+library(ggplot2)
+library(dplyr)
+library(janitor)
+library(readr)
+library(knitr)
+library(moderndive)
+```
+
+```{r}
+# Copy over all your data wrangling code here:
+df <- read.csv("https://raw.githubusercontent.com/HauntingRex9763/term_project/main/df3.csv") %>% 
+  clean_names() %>%
+  select(car_id, price, mileage, transmission) %>%
+  rename(id = car_id) 
+
+# Visualize the count of transmission catagories
+#df %>% 
+#  group_by(transmission) %>%
+#  summarize(n=n())
+
+# Empty values in this dataset are represented as ,, in the csv, so we'll make those NA and omit them
+df[df == ''] <- NA 
+df[df == 'Other'] <- NA
+df <- na.omit(df) 
+```
+
+
+
+***
+
+# 1. Introduction 
+Buying a used car you need to consider various factors. This study aims to better understand how mileage influences the cost of a used car. The average cost of a used car in the UK in 2020 is 23471.45 Euros. This project investigates whether factors such as the mileage of a car and transmission type of a car are related to used car costs in the UK. 
+
+To address this question, we used the^[KUKUROO3 _used car price dataset (competition format)_. Kaggle, n.d. Web. 19 Nov 2022. https://www.kaggle.com/datasets/kukuroo3/used-car-price-dataset-competition-format] data set from Kaggle that merged information from^[Aditya _100,000 UK Used Car Data set_. Kaggle, n.d. Web. 19 Nov 2022. https://www.kaggle.com/datasets/adityadesai13/used-car-dataset-ford-and-mercedes?select=vw.csv] which contains cars listed for sale from various used car listing websites.  The data was last updated two years ago. Each case in the data set is a used car for sale in the UK. The data from Kaggle had data divided into two separate CSVs, so a script was ran to concatenate them called merger.py accessible from the term_project repository^[HauntingRex9763 _term_project_. GitHub, September, 2022. Web. 19 Nov 2022. https://github.com/HauntingRex9763/term_project]. 
+
+It was decided to have price of used cars for sale in the UK (in Euros) as our outcome variable. There is two explanatory variables in this analysis: the mileage of a car, and transmission type of a car, with three levels, "Automatic", "Semi-Auto", and "Manual". The 'Other' category was omittted as it had an irrelevant count of items (1).
+
+Here is a snapshot of 5 randomly chosen rows of the data set we'll use:
+
+```{r}
+df %>% 
+  sample_n(5)
+```
+
+
+
+***
+
+
+
+# 2. Exploratory data analysis
+We had an original sample size of 4960 graduates however since the category 'other' for transmission type was small in comparison of the other categories it was omitted and the new length is 4959.
+
+The total sample size is 4959. (Table 1). The mean of the used car price was greatest for cars who with a Semi-Auto transmission (n = 1351, $\bar{x}$ = 33351.82, sd = 17674.669), second was for Automatic cars (n = 1660, $\bar{x}$ = 27466.15, sd = 16889.362), lastly was for Manual transmissions (n = 1948, $\bar{x}$ = 13214.99, sd = 6270.332), 
+
+The cost of used cars ranged from 450 to 145000 ($\bar{x}$ = 23471.45, sd = 16408.03). 
+
+```{r include = F}
+df %>% 
+  summarize(min = min(mileage), 
+            max = max(mileage), 
+            mean = mean(mileage), 
+            sd = sd(mileage))
+```
+
+
+
+***
+
+Table 1. Summary statistics of average price of used cars in the UK.
+
+```{r}
+df %>% 
+  group_by(transmission) %>% 
+  summarize(n = n(), 
+            correlation = cor(price, mileage),
+            mean = mean(price, na.rm = TRUE), 
+            median = median(price, na.rm = TRUE), 
+            sd = sd(price, na.rm = TRUE),
+            min = min(price),
+            max = max(price))
+```
+
+***
+
+Looking at the distribution of average used car price in Figure 1, there is some pretty heavy right skew, so a log transformation was preformed to bring the data closer to a normal distribution. Figure 2 represents the data post-log-transformation.
+
+```{r, fig.cap = "Figure 1. Distribution of used car prices in the UK represented with a log transformation.", fig.align = "center"}
+# Display price visualization
+ggplot(data=df, aes(x = price)) +
+  geom_histogram() +
+  labs(x = "Price", y = "Frequency") 
+```
+```{r, fig.cap = "Figure 2. Distribution of the log of used car prices in the UK represented with a log transformation.", fig.align = "center"}
+# Execute log transformation of price
+df <- df %>%
+  mutate(log_price =log(price))
+
+# Display price visualization
+ggplot(data=df, aes(x = log_price)) +
+  geom_histogram() +
+  labs(x = "log(Price)", y = "Frequency") 
+```
+
+In Figure 3, a scatterplot was generated to see the overall relationship between our numerical outcome variable: price (price), and our numerical explanatory variable: the mileage of a used car (mileage). As the mileage of a car increased, there was an associated decrease in price for the used cars. Consistent with this relationship is the negetive correlation coefficient of -0.4788324 (a -0.6001203 correlation coefficient with the log price). 
+
+```{r include = F}
+df %>%  
+  summarize(cor(price, mileage))
+
+df %>%  
+  summarize(cor(log_price, mileage))
+
+# No extreame outliers detected
+sort(df$mileage, decreasing=TRUE)
+```
+```{r, fig.cap = "Figure 3. Scatterplot of relationship between price and the associated mileage of cars in the UK.", fig.align = "center"}
+ggplot(df, aes(x = mileage, y = price))+
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE ) +
+  labs(y = "Price", x = "Mileage")
+```
+
+Looking at Figure 4, which displays the relationship between our numerical outcome variable price and our categorical explanatory variable transmission, the prices look to be the greatest for Semi-Auto cars, and the lowest for Manual cars. Furthermore, there appear to be some potential outlines. In particular, there is one car with a very high mileage. Semi-Auto transmissions also have the largest variation in prices as evidenced by the largest interquartile range.
+
+```{r, fig.cap = "Figure 4. Boxplot of relationship between price and transmission for used cars in the UK", fig.align = "center"}
+ggplot(df, aes(x = transmission, y = price, fill = transmission)) +
+  geom_boxplot() +
+  labs(y = "Price of used cars in the UK", x = "Transmission Type")
+```
+
+Finally, we generated a colored scatterplot displaying the relationship between all three variables at once in Figure 5.  While this plot corresponds to an interaction model where we allow for each regression line corresponding to each transmission type to have a different slope, we observe that the slopes appear to be fairly similar, and thus the regression lines are roughly parallel. The additional complexity of the interaction model model thus appears to not be warranted, and thus we will favor the simpler "parallel slopes" model in our regression analysis. 
+
+```{r, fig.cap = "Figure 4. Colored scatterplot of relationship between price and both mileage and transmission types of cars in the UK.", fig.align = "center"}
+ggplot(df, aes(x = mileage, y = log_price, color = transmission)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE ) +
+  labs(y = "Price", x = "Mileage")
+```
+
+
+
+***
+
+
+
+# 3. Multiple linear regression
+
+## 3.1 Methods
+
+The components of our multiple linear regression model are the following:
+
+* Outcome variable $y$ = price
+* Numerical explanatory variable $x_1$ = mileage
+* Categorical explanatory variable $x_2$ = transmission
+
+where the unit of analysis is used cars for sale, given that each row in our dataset corresponds to a unique car. As discussed earlier, we did not include an interaction effect because the slopes appear to be reasonably parallel in Figure 4. 
+
+
+## 3.2 Model Results
+
+***
+
+Table 2. Regression table of parallel slopes model of average price as a function of mileage and transmission.
+ 
+```{r}
+math_model <- lm(price ~ mileage + transmission, data = df)
+math_model
+get_regression_table(math_model)
+```
+
+***
+
+## 3.3 Interpreting the regression table
+
+The regression equation for used car prices is the following:
+
+$$
+\begin{aligned}\widehat {price} =& b_{0} + b_{mileage} \cdot mileage + b_{manual} \cdot 1_{is\ manual}(x_2) + b_{semi-auto} \cdot 1_{is\ semi-auto}(x_2) \\
+ =& 34431.667 - 0.266 \cdot mileage - 13279.339 \cdot 1_{is\ manual}(x_2) + 3272.719 \cdot 1_{is\ semi-auto}(x_2)
+\end{aligned} 
+$$
+
+* The intercept ($b_0$ = 34431.667) represents the average price when mileage is 0 transmission is automatic. (Table 2).
+* The estimate for the slope for the price ($b_{prct}$ = -0.266) is the associated change in mileage depending on the transmission type fo the car. Based on this estimate, for every mile traveled, there was an associated decrease in price of on average 0.266 Euros
+* The estimate for Manual ($b_{manual}$ = -13279.339) and Semi-Auto ($b_{semi-auto}$ = 3272.719) are the offsets in intercept relative to the baseline group's, Automatic, intercept (Table 2). In other words, on average used cars with Manual transmissions cost 13279.339 Euros less than cars with Automatic transmissions, while used cars with Semi-Auto transmissions cost on average 3272.719 more than used cars with Automatic Transmissions.
+
+Thus the three regression lines have equations:
+
+$$
+\begin{aligned}
+\text{Automatic transmissions (in red)}: \widehat {price} =& 34431.667 - 2.777 \cdot mileage\\
+\text{Manual transmissions (in green)}: \widehat {price} =& 21152.328 - 2.777 \cdot mileage\\
+\text{Semi-Auto transmissions (in blue)}: \widehat {price} =& 37704.386 - 2.777 \cdot mileage
+\end{aligned} 
+$$
+
+## 3.4 Inference for multiple regression
+
+
+
+## 3.5 Residual Analysis
+
+
+
+***
+
+
+
+# 4. Discussion 
+
+## 4.1 Conclusions
+
+
+## 4.2 Limitations
+
+
+## 4.3 Further questions
+  
+
+
+
+
+***
+
+
+# 5. Citations and References {-}
+
